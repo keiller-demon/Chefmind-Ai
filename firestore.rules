@@ -1,0 +1,182 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - photoURL: string
+    //   - xp: number (required)
+    //   - level: string (required, enum)
+    //   - streak: number
+    //   - lastLogin: string (ISO 8601)
+    //   - dailyChallengeCompleted: bool
+    //
+    // Collection: recipes
+    // Document ID: {recipeId}
+    // Fields:
+    //   - name: string (required)
+    //   - ingredients: list (required)
+    //   - steps: list (required)
+    //   - time: string
+    //   - difficulty: string (enum)
+    //   - authorId: string (required)
+    //   - createdAt: string (ISO 8601)
+    //
+    // Collection: analyses
+    // Document ID: {analysisId}
+    // Fields:
+    //   - userId: string (required)
+    //   - imageUrl: string (required)
+    //   - dishName: string (required)
+    //   - rating: number (required)
+    //   - feedback: string (required)
+    //   - platingSuggestions: string
+    //   - textureAdvice: string
+    //   - calories: number (required)
+    //   - nutrients: map (required)
+    //   - ingredients: list (required)
+    //   - perfectSteps: list (required)
+    //   - createdAt: string (ISO 8601)
+    //
+    // Collection: sessions
+    // Document ID: {sessionId}
+    // Fields:
+    //   - userId: string (required)
+    //   - recipeId: string
+    //   - xpGained: number (required)
+    //   - createdAt: string (ISO 8601)
+    //
+    // Collection: challenges
+    // Document ID: {challengeId}
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (required)
+    //   - xpBonus: number (required)
+    //   - date: string (required)
+    //
+    // Collection: collections
+    // Document ID: {collectionId}
+    // Fields:
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - description: string
+    //   - createdAt: string (ISO 8601)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'xp', 'level']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.xp is number && data.xp >= 0 &&
+             data.level in ['Beginner', 'Home Cook', 'Pro', 'Master Chef'];
+    }
+
+    function isValidRecipe(data) {
+      return data.keys().hasAll(['name', 'ingredients', 'steps', 'authorId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.ingredients is list && data.ingredients.size() > 0 &&
+             data.steps is list && data.steps.size() > 0 &&
+             data.authorId == request.auth.uid;
+    }
+
+    function isValidAnalysis(data) {
+      return data.keys().hasAll(['userId', 'imageUrl', 'dishName', 'rating', 'feedback', 'calories', 'nutrients', 'ingredients', 'perfectSteps']) &&
+             data.userId == request.auth.uid &&
+             data.imageUrl is string &&
+             data.dishName is string && data.dishName.size() > 0 &&
+             data.rating is number && data.rating >= 0 && data.rating <= 10 &&
+             data.feedback is string && data.feedback.size() < 2000 &&
+             data.calories is number &&
+             data.nutrients is map &&
+             data.ingredients is list &&
+             data.perfectSteps is list;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['userId', 'xpGained', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.xpGained is number &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidCollection(data) {
+      return data.keys().hasAll(['userId', 'name']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 50;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if true; // Recipes are public
+      allow create: if isAuthenticated() && isValidRecipe(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.authorId == request.auth.uid && isValidRecipe(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
+
+    match /analyses/{analysisId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidAnalysis(request.resource.data);
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidSession(request.resource.data);
+    }
+
+    match /challenges/{challengeId} {
+      allow read: if true;
+      allow write: if false; // Only admin can create challenges (manually or via cloud function)
+    }
+
+    match /collections/{collectionId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidCollection(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && isValidCollection(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

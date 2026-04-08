@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and progression data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "xp": { "type": "number" },
+        "level": { "type": "string", "enum": ["Beginner", "Home Cook", "Pro", "Master Chef"] },
+        "streak": { "type": "number" },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "dailyChallengeCompleted": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "xp", "level"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Cooking recipe data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ingredients": { "type": "array", "items": { "type": "string" } },
+        "steps": { "type": "array", "items": { "type": "string" } },
+        "time": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ingredients", "steps", "authorId"]
+    },
+    "DishAnalysis": {
+      "title": "DishAnalysis",
+      "description": "AI analysis of a cooked dish",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "dishName": { "type": "string" },
+        "rating": { "type": "number" },
+        "feedback": { "type": "string" },
+        "platingSuggestions": { "type": "string" },
+        "textureAdvice": { "type": "string" },
+        "calories": { "type": "number" },
+        "nutrients": {
+          "type": "object",
+          "properties": {
+            "protein": { "type": "string" },
+            "carbs": { "type": "string" },
+            "fats": { "type": "string" }
+          }
+        },
+        "ingredients": { "type": "array", "items": { "type": "string" } },
+        "perfectSteps": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "imageUrl", "dishName", "rating", "feedback", "calories", "nutrients", "ingredients", "perfectSteps"]
+    },
+    "CookingSession": {
+      "title": "CookingSession",
+      "description": "Record of a cooking session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "recipeId": { "type": "string" },
+        "xpGained": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "xpGained", "createdAt"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "Daily cooking challenge",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "xpBonus": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "difficulty": { "type": "string" }
+      },
+      "required": ["title", "description", "xpBonus", "date"]
+    },
+    "Collection": {
+      "title": "Collection",
+      "description": "User's recipe collection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/recipes/{recipeId}": {
+      "schema": "Recipe",
+      "description": "Public and private recipes"
+    },
+    "/analyses/{analysisId}": {
+      "schema": "DishAnalysis",
+      "description": "User dish analysis results"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "CookingSession",
+      "description": "User cooking history"
+    },
+    "/challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "Daily challenges"
+    },
+    "/collections/{collectionId}": {
+      "schema": "Collection",
+      "description": "User recipe collections"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "ChefMind AI",
+  "description": "An AI-powered cooking coach and skill-building platform with gamified progression and dish analysis.",
+  "requestFramePermissions": ["camera"]
+}
